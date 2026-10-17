@@ -9,3 +9,4 @@ bin
 docker-compose.yml
 deploy
 *.md
+docs

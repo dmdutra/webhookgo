@@ -20,6 +20,10 @@
   <a href="#hosting">Self-host</a>
 </p>
 
+<p align="center">
+  <img src="docs/screenshot.png" alt="webhookgo: a list of captured requests and a JSON webhook body, with its signature marked valid" width="900">
+</p>
+
 Get a unique URL, point any service at it, and watch every request arrive
 instantly: headers, query string, form fields, files and body, pretty-printed.
 
