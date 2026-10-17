@@ -1,0 +1,33 @@
+# Publishes the app through ngrok: no open ports, HTTPS by ngrok.
+#
+# 1. Sign up at ngrok.com and copy your authtoken
+#    (dashboard → Getting Started → Your Authtoken).
+# 2. Copy your free static domain (dashboard → Domains), or any domain you
+#    have added to ngrok.
+# 3. Put this in .env and keep running `docker compose up -d`:
+#
+#      NGROK_AUTHTOKEN=2abc...
+#      NGROK_DOMAIN=example-name.ngrok-free.app
+#      COMPOSE_FILE=docker-compose.yml:deploy/ngrok/compose.yml
+#
+# The app stays on http://localhost:8080 too (this machine only).
+services:
+  app:
+    ports: !override ["127.0.0.1:${PORT:-8080}:8080"]
+    environment:
+      PUBLIC_URL: https://${NGROK_DOMAIN:?set NGROK_DOMAIN in .env}
+      TRUST_PROXY: "1"
+
+  ngrok:
+    image: ngrok/ngrok:3-alpine
+    entrypoint: ["ngrok"] # the image's script writes a config file; ngrok reads NGROK_AUTHTOKEN itself
+    command: ["http", "app:8080", "--url", "https://${NGROK_DOMAIN:?set NGROK_DOMAIN in .env}", "--inspect=false", "--log", "stdout"]
+    restart: unless-stopped
+    environment:
+      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN:?set NGROK_AUTHTOKEN in .env}
+    depends_on:
+      app:
+        condition: service_healthy
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]

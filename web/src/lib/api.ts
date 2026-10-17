@@ -1,0 +1,66 @@
+import type { AppConfig, FullRequest, Page, Summary, Token, TokenInput } from './types';
+
+export class ApiError extends Error {
+  constructor(
+    public status: number,
+    message: string,
+  ) {
+    super(message);
+  }
+}
+
+async function call<T>(method: string, path: string, body?: unknown): Promise<T> {
+  let res: Response;
+  try {
+    res = await fetch(path, {
+      method,
+      headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+  } catch {
+    throw new ApiError(0, 'Network error — is the server running?');
+  }
+  if (res.status === 204) return undefined as T;
+  const text = await res.text();
+  let data: unknown = null;
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    /* not JSON */
+  }
+  if (!res.ok) {
+    const msg = (data as { error?: string } | null)?.error ?? `HTTP ${res.status}`;
+    throw new ApiError(res.status, msg);
+  }
+  return data as T;
+}
+
+export interface ListParams {
+  page?: number;
+  perPage?: number;
+  q?: string;
+  method?: string;
+}
+
+export const api = {
+  config: () => call<AppConfig>('GET', '/api/config'),
+  createToken: (input: TokenInput = {}) => call<Token>('POST', '/token', input),
+  getToken: (id: string) => call<Token>('GET', `/token/${id}`),
+  updateToken: (id: string, input: TokenInput) => call<Token>('PUT', `/token/${id}`, input),
+  deleteToken: (id: string) => call<void>('DELETE', `/token/${id}`),
+  listRequests: (id: string, { page = 1, perPage = 50, q = '', method = '' }: ListParams = {}) => {
+    const p = new URLSearchParams({ page: String(page), per_page: String(perPage), sorting: 'newest', summary: '1' });
+    if (q) p.set('q', q);
+    if (method) p.set('method', method);
+    return call<Page<Summary>>('GET', `/token/${id}/requests?${p}`);
+  },
+  getRequest: (id: string, rid: string) => call<FullRequest>('GET', `/token/${id}/request/${rid}`),
+  deleteRequest: (id: string, rid: string) => call<{ status: boolean }>('DELETE', `/token/${id}/request/${rid}`),
+  clearRequests: (id: string) => call<{ status: boolean }>('DELETE', `/token/${id}/request`),
+  rawUrl: (id: string, rid: string, download = false) =>
+    `/token/${id}/request/${rid}/raw${download ? '?download=1' : ''}`,
+  streamUrl: (id: string) => `/token/${id}/stream`,
+};
+
+export const isUUID = (s: string | undefined): s is string =>
+  !!s && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);

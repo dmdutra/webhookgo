@@ -1,0 +1,60 @@
+# docker compose up -d   → http://localhost:8080
+# Settings can be overridden in a .env file next to this one (see .env.example).
+name: webhookgo
+
+services:
+  app:
+    build:
+      context: .
+      args:
+        VERSION: ${VERSION:-0.0.1}
+    # Built from source by default: `up -d` always rebuilds (cached, fast). To
+    # run the published image instead, set IMAGE and PULL_POLICY (.env.example).
+    image: ${IMAGE:-webhookgo:${VERSION:-0.0.1}}
+    pull_policy: ${PULL_POLICY:-build}
+    restart: unless-stopped
+    ports:
+      - "${PORT:-8080}:8080"
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      APP_NAME: ${APP_NAME:-webhookgo}
+      PUBLIC_URL: ${PUBLIC_URL:-}
+      MAX_REQUESTS: ${MAX_REQUESTS:-500}
+      TOKEN_TTL: ${TOKEN_TTL:-7d}
+      MAX_BODY_SIZE: ${MAX_BODY_SIZE:-2MB}
+      MAX_DELAY: ${MAX_DELAY:-30}
+      MAX_URL_STORAGE: ${MAX_URL_STORAGE:-64MB}
+      RATE_LIMIT: ${RATE_LIMIT:-600}
+      TOKEN_RATE_LIMIT: ${TOKEN_RATE_LIMIT:-30}
+      API_RATE_LIMIT: ${API_RATE_LIMIT:-1200}
+      TRUST_PROXY: ${TRUST_PROXY:-false}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      LOG_FORMAT: ${LOG_FORMAT:-text}
+    depends_on:
+      redis:
+        condition: service_healthy
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+
+  redis:
+    image: redis:8-alpine
+    restart: unless-stopped
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --maxmemory
+      - ${REDIS_MAXMEMORY:-512mb}
+      - --maxmemory-policy
+      - volatile-lru
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  redis-data:

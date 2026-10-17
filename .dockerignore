@@ -1,0 +1,11 @@
+.git
+.github
+.env
+webhook.site
+web/node_modules
+web/dist
+bin
+**/.DS_Store
+docker-compose.yml
+deploy
+*.md

@@ -1,0 +1,31 @@
+# Publishes the app on your domain through a Cloudflare Tunnel: no open
+# ports, no certificates to manage (Cloudflare serves HTTPS).
+#
+# 1. Cloudflare dashboard → Zero Trust → Networks → Tunnels → Create a tunnel
+#    (Cloudflared), and copy its token.
+# 2. In the tunnel, add a public hostname: hooks.example.com → service
+#    HTTP, URL app:8080.
+# 3. Put this in .env and keep running `docker compose up -d`:
+#
+#      CLOUDFLARE_TUNNEL_TOKEN=eyJhIjoi...
+#      DOMAIN=hooks.example.com
+#      COMPOSE_FILE=docker-compose.yml:deploy/cloudflare/compose.yml
+services:
+  app:
+    ports: !reset [] # reachable only through the tunnel
+    environment:
+      PUBLIC_URL: https://${DOMAIN:?set DOMAIN in .env}
+      TRUST_PROXY: "1"
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    command: tunnel run
+    restart: unless-stopped
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:?set CLOUDFLARE_TUNNEL_TOKEN in .env}
+    depends_on:
+      app:
+        condition: service_healthy
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]

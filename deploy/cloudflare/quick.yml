@@ -1,0 +1,25 @@
+# Instant public HTTPS URL with a Cloudflare Quick Tunnel: no account, no
+# domain, nothing to configure. The address is random and changes on every
+# restart, so this is for trying things out.
+#
+#   COMPOSE_FILE=docker-compose.yml:deploy/cloudflare/quick.yml   (in .env)
+#   docker compose up -d
+#   docker compose logs cloudflared | grep -o 'https://.*trycloudflare.com'
+#
+# The app stays on http://localhost:8080 too (this machine only).
+services:
+  app:
+    ports: !override ["127.0.0.1:${PORT:-8080}:8080"]
+    environment:
+      TRUST_PROXY: "1"
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    command: tunnel --url http://app:8080
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]

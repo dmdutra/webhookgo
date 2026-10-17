@@ -1,0 +1,40 @@
+# Adds Caddy with automatic HTTPS in front of the app. Put this in .env:
+#
+#   DOMAIN=hooks.example.com
+#   COMPOSE_FILE=docker-compose.yml:deploy/caddy/compose.yml
+#
+# and keep running `docker compose up -d`. (Or pass both files every time:
+# docker compose -f docker-compose.yml -f deploy/caddy/compose.yml up -d)
+#
+# Paths below are relative to the project directory, not to this file.
+services:
+  app:
+    ports: !reset [] # reachable only through Caddy
+    environment:
+      PUBLIC_URL: https://${DOMAIN:?set DOMAIN in .env}
+      TRUST_PROXY: "1"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp" # HTTP/3
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN in .env}
+    volumes:
+      - ./deploy/caddy:/etc/caddy:ro # a directory, so edits show up on reload
+      - caddy-data:/data # certificates and ACME account: keep this volume
+      - caddy-config:/config
+    depends_on:
+      app:
+        condition: service_healthy
+    read_only: true
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    security_opt: ["no-new-privileges:true"]
+
+volumes:
+  caddy-data:
+  caddy-config:

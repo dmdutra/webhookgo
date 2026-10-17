@@ -1,0 +1,59 @@
+# Caddy in front of webhookgo, with automatic HTTPS: Caddy gets the
+# certificate from Let's Encrypt on first start and renews it by itself.
+#
+# Used by deploy/caddy/compose.yml, which passes DOMAIN from .env. For Caddy
+# installed on the host instead, replace {$DOMAIN} with your domain and
+# app:8080 with 127.0.0.1:8080 (and set PORT=127.0.0.1:8080 in .env).
+#
+# Requirements: DNS for the domain points at this server and ports 80 and 443
+# are reachable from the internet (Let's Encrypt validates through them).
+#
+# Caveat: Caddy 2.11.4+ drops request headers whose names contain "_" or "."
+# (a fix for PHP/CGI backends, GHSA-f59h-q822-g45g), so captured requests
+# never show them. Known names can be let through below, but each entry also
+# drops its hyphenated twin (api_key drops Api-Key). Use the nginx example
+# when every header must reach the app.
+{
+	# Optional: an address for the ACME account.
+	# email you@example.com
+
+	servers {
+		# expected_underscore_headers api_key
+		# expected_dot_headers x.request.id
+
+		# Behind a CDN such as Cloudflare, trust its ranges so Caddy keeps
+		# the client address in X-Forwarded-For, and set TRUST_PROXY=2:
+		# trusted_proxies static 173.245.48.0/20 103.21.244.0/22 ...
+	}
+}
+
+(webhookgo) {
+	# Caddy sets X-Forwarded-For/-Proto/-Host, keeps the Host header and
+	# streams the live updates (text/event-stream) without buffering.
+	# The rest keeps requests and responses as they were sent: no Via or
+	# Accept-Encoding added by Caddy.
+	header -Via
+	reverse_proxy app:8080 {
+		header_up -Via
+		transport http {
+			compression off
+		}
+	}
+}
+
+{$DOMAIN} {
+	import webhookgo
+}
+
+# Webhook URLs (/<uuid>/...) also answer over plain HTTP, like webhook.site,
+# because some senders and devices cannot do TLS. Everything else redirects
+# to HTTPS. Delete this block to serve HTTPS only.
+http://{$DOMAIN} {
+	@webhook path_regexp ^/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}(/|$)
+	handle @webhook {
+		import webhookgo
+	}
+	handle {
+		redir https://{host}{uri} 308
+	}
+}
