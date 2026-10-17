@@ -47,7 +47,9 @@ docker compose up -d
 open http://localhost:8080
 ```
 
-This builds the image from source. To put it online with HTTPS, see
+This builds the image from source. With a `.env` copied from
+[`.env.example`](.env.example), it pulls the published `latest` image instead.
+To put it online with HTTPS, see
 [Hosting](#hosting). You can use a tunnel (Cloudflare, ngrok) or a reverse
 proxy (Caddy, nginx), each switched on from `.env`.
 
@@ -63,8 +65,9 @@ printf 'IMAGE=ghcr.io/dbaio/webhookgo:latest\nPULL_POLICY=always\n' > .env
 docker compose up -d
 ```
 
-`PULL_POLICY=always` gets the newest release on every `docker compose up -d`.
-To stay on one version, use a version tag such as `ghcr.io/dbaio/webhookgo:1`.
+`latest` is the newest build of `main`, and `PULL_POLICY=always` gets it on
+every `docker compose up -d`. To stay on a release, use a version tag such as
+`ghcr.io/dbaio/webhookgo:1`.
 
 ## Features
 
@@ -376,11 +379,14 @@ GitHub Container Registry:
 
 | You push | Image tags |
 | --- | --- |
-| a commit to `main` | `edge` |
-| a tag such as `v1.2.3` | `1.2.3`, `1.2`, `1`, `latest` |
+| a commit to `main` | `latest` |
+| a tag such as `v1.2.3` | `1.2.3`, `1.2`, `1` |
+
+Push the tag on its own, after the commit it points to:
 
 ```sh
-git tag v1.0.0 && git push origin v1.0.0
+git push origin main
+git tag v1.2.3 && git push origin v1.2.3
 ```
 
 New packages start out private. After the first publish, go to the
