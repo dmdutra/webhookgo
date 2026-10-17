@@ -103,7 +103,7 @@ overrides in a `.env` file next to `docker-compose.yml` (see [`.env.example`](.e
 | `RATE_LIMIT` | `600` | Captured requests per minute per client IP (`0` = unlimited). |
 | `TOKEN_RATE_LIMIT` | `30` | New URLs per minute per client IP (`0` = unlimited). |
 | `API_RATE_LIMIT` | `1200` | API calls (`/token/…`) per minute per client IP (`0` = unlimited). |
-| `TRUST_PROXY` | `false` | Honour `X-Forwarded-*` from your reverse proxies: `true` for one, or how many (e.g. `2` for CDN + nginx). The client IP is read from the right of `X-Forwarded-For`, so it can't be spoofed. |
+| `TRUST_PROXY` | `false` | Honour `X-Forwarded-*` from your reverse proxies: `true` for one, or how many. The client IP is read from the right of `X-Forwarded-For`, so it can't be spoofed. Behind Cloudflare's proxy, see [Behind Cloudflare](#behind-cloudflares-proxy). |
 | `REDIS_URL` | `redis://localhost:6379/0` | Redis connection (`rediss://` for TLS). |
 | `LISTEN_ADDR` | `:8080` | Address the server listens on. |
 | `LOG_LEVEL` / `LOG_FORMAT` | `info` / `text` | `debug`…`error`; `text` or `json`. |
@@ -234,6 +234,24 @@ HTTP, and the UI and API redirect to HTTPS. On top of that it keeps:
 - responses byte for byte, with no gzip added
 
 It needs nginx 1.25.1 or later. The file has a note for older versions.
+
+### Behind Cloudflare's proxy
+
+When the domain's DNS record is proxied by Cloudflare (orange cloud) in front
+of Caddy or nginx, every request reaches the proxy from a Cloudflare address.
+To show the real client, let the proxy take it from `CF-Connecting-IP`, but
+only on connections from [Cloudflare's ranges](https://www.cloudflare.com/ips),
+so a request sent straight to your server can't forge it. `TRUST_PROXY` stays
+`1`.
+
+- **Caddy**: uncomment `trusted_proxies` and `client_ip_headers` in
+  [`deploy/caddy/Caddyfile`](deploy/caddy/Caddyfile).
+- **nginx**: write the ranges to a file with the command at the top of
+  [`deploy/nginx/webhookgo.conf`](deploy/nginx/webhookgo.conf) and uncomment
+  its `include` line.
+
+A Cloudflare Tunnel needs none of this: there the app reads the client from
+`X-Forwarded-For`, which Cloudflare fills in.
 
 ### Any other reverse proxy
 
