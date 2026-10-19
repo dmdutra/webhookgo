@@ -395,6 +395,27 @@ make build        # bin/webhookgo with the UI embedded
 
 ### Releases
 
+Pushing a version tag such as `v1.2.3` also publishes binaries to
+[GitHub Releases](https://github.com/dbaio/webhookgo/releases) using
+[GoReleaser](.goreleaser.yaml), after the tests pass:
+
+| OS | Architectures | Archive |
+| --- | --- | --- |
+| Linux | x86_64, arm64 | `.tar.gz` |
+| Windows | x86_64, arm64 | `.zip` |
+| FreeBSD | x86_64, arm64 | `.tar.gz` |
+
+Each binary includes the web UI and the release version. Archives include
+the license and README; `checksums.txt` contains SHA-256 checksums.
+Running a binary requires a reachable Redis instance (`REDIS_URL`).
+
+To build release archives locally without publishing (requires GoReleaser,
+Go, and Node.js):
+
+```sh
+goreleaser release --snapshot --clean
+```
+
 The CI workflow ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) builds
 the image for amd64 and arm64. Once the tests pass, it publishes the image to
 GitHub Container Registry:
